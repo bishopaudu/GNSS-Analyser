@@ -1,0 +1,36 @@
+name: gnss_analyzer
+description: A professional GNSS diagnostic tool for visualizing satellite signals and GPS accuracy.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Location & GNSS packages
+  geolocator: ^12.0.0
+
+  # State management
+  provider: ^6.1.2
+
+  # UI & utilities
+  cupertino_icons: ^1.0.6
+  permission_handler: ^11.3.1
+  raw_gnss: ^1.1.0+1
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+dependency_overrides:
+  raw_gnss:
+    path: ./local_packages/raw_gnss

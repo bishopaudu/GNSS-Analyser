@@ -1,0 +1,5 @@
+package com.example.gnss_analyzer
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity: FlutterActivity()
