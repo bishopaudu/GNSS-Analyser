@@ -22,6 +22,8 @@ dependencies:
   raw_gnss: ^1.1.0+1
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
+  share_plus: ^12.0.2
+  flutter_compass: ^0.8.1
 
 dev_dependencies:
   flutter_test:

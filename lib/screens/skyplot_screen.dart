@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 
 import '../providers/gnss_provider.dart';
 import '../utils/app_theme.dart';
@@ -79,7 +80,34 @@ class SkyplotScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 16),
+          StreamBuilder<CompassEvent>(
+            stream: FlutterCompass.events,
+            builder: (context, snapshot) {
+              double? heading = snapshot.data?.heading;
+              if (heading == null) return const SizedBox(height: 16);
+              String dir = _getCompassDirection(heading);
+              return Padding(
+                padding: const EdgeInsets.only(top: 16, bottom: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.explore, color: AppTheme.accentCyan, size: 16),
+                    const SizedBox(width: 8),
+                    Text(
+                      'COMPASS HEADING: ${heading.toStringAsFixed(0)}° $dir',
+                      style: const TextStyle(
+                        color: AppTheme.accentCyan,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
           Expanded(
             child: Center(
               child: sortedSatellites.isEmpty
@@ -90,13 +118,132 @@ class SkyplotScreen extends StatelessWidget {
                         fontFamily: 'monospace',
                       ),
                     )
-                  : SkyplotView(satellites: sortedSatellites),
+                  : SkyplotView(
+                      satellites: sortedSatellites,
+                      onSatelliteTapped: (sat) => _showSatelliteDetail(context, sat),
+                    ),
             ),
           ),
           _buildLegend(),
           const SizedBox(height: 32),
         ],
       ),
+    );
+  }
+
+  String _getCompassDirection(double heading) {
+    if (heading >= 337.5 || heading < 22.5) return 'N';
+    if (heading < 67.5) return 'NE';
+    if (heading < 112.5) return 'E';
+    if (heading < 157.5) return 'SE';
+    if (heading < 202.5) return 'S';
+    if (heading < 247.5) return 'SW';
+    if (heading < 292.5) return 'W';
+    return 'NW';
+  }
+
+  void _showSatelliteDetail(BuildContext context, SatelliteInfo sat) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        final constellationColor = AppTheme.constellationColors[sat.constellation.label] ?? AppTheme.textMuted;
+        
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: constellationColor,
+                      shape: BoxShape.circle,
+                      boxShadow: sat.usedInFix
+                          ? [BoxShadow(color: constellationColor.withOpacity(0.6), blurRadius: 8)]
+                          : null,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    '${sat.constellation.label}-${sat.svid}',
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const Spacer(),
+                  if (sat.usedInFix)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentGreen.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: AppTheme.accentGreen.withOpacity(0.5)),
+                      ),
+                      child: const Text(
+                        'USED IN FIX',
+                        style: TextStyle(
+                          color: AppTheme.accentGreen,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 32),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildDetailItem('SNR', '${sat.snr.toStringAsFixed(1)} dB', Icons.signal_cellular_alt),
+                  _buildDetailItem('ELEVATION', '${sat.elevation.toStringAsFixed(1)}°', Icons.height),
+                  _buildDetailItem('AZIMUTH', '${sat.azimuth.toStringAsFixed(1)}°', Icons.explore),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.accentPurple, size: 24),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            fontFamily: 'monospace',
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.textMuted,
+            fontSize: 10,
+            fontFamily: 'monospace',
+            letterSpacing: 1,
+          ),
+        ),
+      ],
     );
   }
 

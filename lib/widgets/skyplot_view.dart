@@ -5,8 +5,9 @@ import '../utils/app_theme.dart';
 
 class SkyplotView extends StatefulWidget {
   final List<SatelliteInfo> satellites;
+  final Function(SatelliteInfo)? onSatelliteTapped;
 
-  const SkyplotView({super.key, required this.satellites});
+  const SkyplotView({super.key, required this.satellites, this.onSatelliteTapped});
 
   @override
   State<SkyplotView> createState() => _SkyplotViewState();
@@ -56,10 +57,38 @@ class _SkyplotViewState extends State<SkyplotView> with SingleTickerProviderStat
       ),
       child: AspectRatio(
         aspectRatio: 1.0,
-        child: CustomPaint(
-          painter: _SkyplotPainter(
-            satellites: widget.satellites,
-            animation: _controller,
+        child: GestureDetector(
+          onTapUp: (TapUpDetails details) {
+            if (widget.onSatelliteTapped == null) return;
+            
+            final RenderBox renderBox = context.findRenderObject() as RenderBox;
+            final size = renderBox.size;
+            final center = Offset(size.width / 2, size.height / 2);
+            final maxRadius = size.width / 2;
+            final plotRadius = maxRadius - 16.0;
+
+            for (var sat in widget.satellites) {
+              double r = plotRadius * (1.0 - (sat.elevation / 90.0));
+              if (r < 0) r = 0; 
+              
+              double angle = (sat.azimuth - 90) * (math.pi / 180.0);
+              
+              double x = center.dx + r * math.cos(angle);
+              double y = center.dy + r * math.sin(angle);
+              
+              double distance = math.sqrt(math.pow(x - details.localPosition.dx, 2) + math.pow(y - details.localPosition.dy, 2));
+              
+              if (distance <= 24.0) {
+                widget.onSatelliteTapped!(sat);
+                break; // Stop after first match
+              }
+            }
+          },
+          child: CustomPaint(
+            painter: _SkyplotPainter(
+              satellites: widget.satellites,
+              animation: _controller,
+            ),
           ),
         ),
       ),

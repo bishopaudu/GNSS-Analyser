@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../providers/gnss_provider.dart';
 import '../models/gps_position.dart';
@@ -23,7 +24,26 @@ class PositionSection extends StatelessWidget {
       title: 'Current Position',
       subtitle: 'Real-time GPS fix',
       accentColor: AppTheme.accentCyan,
-      trailing: _LiveIndicator(),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _LiveIndicator(),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: const Icon(Icons.share, size: 20, color: AppTheme.accentCyan),
+            onPressed: () {
+              if (pos.latitude != 0 && pos.longitude != 0) {
+                final url = 'https://www.google.com/maps/search/?api=1&query=${pos.latitude},${pos.longitude}';
+                final text = 'My GNSS Location:\n$url\nAltitude: ${pos.altitude.toStringAsFixed(1)}m\nAccuracy: ±${pos.accuracy.toStringAsFixed(1)}m';
+                Share.share(text);
+              }
+            },
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            tooltip: 'Share Content',
+          ),
+        ],
+      ),
       child: Column(
         children: [
           // Primary coordinates row
