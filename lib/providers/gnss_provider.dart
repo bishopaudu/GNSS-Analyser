@@ -2,12 +2,11 @@
 // Uses ChangeNotifier + Provider pattern so widgets rebuild only when needed.
 
 import 'dart:async';
-
 import 'package:flutter/foundation.dart';
-
 import '../models/gps_position.dart';
 import '../models/satellite_info.dart';
 import '../services/gps_service.dart';
+import '../services/geocoding_service.dart';
 
 class GnssProvider extends ChangeNotifier {
   final GpsService _gpsService = GpsService();
@@ -52,6 +51,16 @@ class GnssProvider extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  // --- Address (reverse geocoding) ---
+  String? _currentAddress;
+  String? get currentAddress => _currentAddress;
+
+  bool _isFetchingAddress = false;
+  bool get isFetchingAddress => _isFetchingAddress;
+
+  // Last position that triggered a geocode request — used for >100 m threshold
+  GpsPosition? _lastGeocodedPosition;
+
   // Stream subscriptions kept for clean disposal
   StreamSubscription<GpsPosition>? _positionSub;
   StreamSubscription<List<SatelliteInfo>>? _satelliteSub;
@@ -84,6 +93,20 @@ class GnssProvider extends ChangeNotifier {
       }
       _currentPosition = pos;
       notifyListeners();
+
+      // Trigger reverse geocoding when we move >100 m from last geocoded point
+      // (or on the very first valid fix)
+      if (pos.latitude != 0 && !_isFetchingAddress) {
+        final last = _lastGeocodedPosition;
+        final moved = last == null
+            ? true
+            : GpsService.haversineDistance(
+                    last.latitude, last.longitude,
+                    pos.latitude, pos.longitude) > 100;
+        if (moved) {
+          _fetchAddress(pos);
+        }
+      }
     });
 
     // Subscribe to satellite status updates from GpsService
@@ -114,6 +137,20 @@ class GnssProvider extends ChangeNotifier {
     _isTracking = false;
     notifyListeners();
   }
+
+  // ---------------------------------------------------------------------------
+  // Geocoding
+
+  Future<void> _fetchAddress(GpsPosition pos) async {
+    _isFetchingAddress = true;
+    _lastGeocodedPosition = pos;
+    final address = await GeocodingService.fetchAddress(pos.latitude, pos.longitude);
+    _currentAddress = address;
+    _isFetchingAddress = false;
+    notifyListeners();
+  }
+
+  // ---------------------------------------------------------------------------
 
   /// Returns satellites filtered by constellation type
   List<SatelliteInfo> getSatellitesByConstellation(ConstellationType type) =>

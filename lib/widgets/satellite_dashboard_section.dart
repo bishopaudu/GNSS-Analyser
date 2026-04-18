@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/gnss_provider.dart';
-import '../models/satellite_info.dart';
 import '../utils/app_theme.dart';
 import 'section_card.dart';
 

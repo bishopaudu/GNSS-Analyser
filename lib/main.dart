@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/gnss_provider.dart';
+import 'providers/waypoint_provider.dart';
 import 'services/gps_service.dart';
 import 'screens/home_screen.dart';
 import 'screens/permission_screen.dart';
@@ -31,9 +32,11 @@ void main() {
   ));
 
   runApp(
-    // Provide GnssProvider at the root so all descendants can access it
-    ChangeNotifierProvider(
-      create: (_) => GnssProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => GnssProvider()),
+        ChangeNotifierProvider(create: (_) => WaypointProvider()),
+      ],
       child: const GnssAnalyzerApp(),
     ),
   );

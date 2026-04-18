@@ -1,13 +1,14 @@
-//  Map view showing current location and tracked path using OpenStreetMap.
-// Uses flutter_map (no API key needed) with OSM tile layer.
+// widgets/map_section.dart
+// Map view: live OSM tiles + path polyline + waypoint pin markers.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:provider/provider.dart';
-
 import '../providers/gnss_provider.dart';
+import '../providers/waypoint_provider.dart';
 import '../models/gps_position.dart';
+import '../models/waypoint.dart';
 import '../utils/app_theme.dart';
 import 'section_card.dart';
 
@@ -17,10 +18,12 @@ class MapSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<GnssProvider>();
+    final waypointProvider = context.watch<WaypointProvider>();
     final pos = provider.currentPosition;
     final isTracking = provider.isTracking;
     final totalDistance = provider.totalDistance;
     final pathPoints = provider.trackingPath;
+    final waypoints = waypointProvider.waypoints;
 
     return SectionCard(
       title: 'Map View',
@@ -31,7 +34,6 @@ class MapSection extends StatelessWidget {
           : null,
       child: Column(
         children: [
-          // Render real tiles if we have a position, otherwise a simple placeholder
           if (pos.latitude != 0)
             SizedBox(
               height: 200,
@@ -44,26 +46,37 @@ class MapSection extends StatelessWidget {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                       userAgentPackageName: 'com.example.gnss_analyzer',
                     ),
-                    // Path polyline — only render when we have 2+ points
+                    // Path polyline — only rendered when 2+ points exist
                     if (pathPoints.length >= 2)
                       PolylineLayer(
                         polylines: [
                           Polyline(
-                            points: pathPoints.map((p) => LatLng(p.latitude, p.longitude)).toList(),
+                            points: pathPoints
+                                .map((p) => LatLng(p.latitude, p.longitude))
+                                .toList(),
                             color: AppTheme.accentCyan,
                             strokeWidth: 3,
                           ),
                         ],
+                      ),
+                    // Waypoint markers — amber push-pin icons
+                    if (waypoints.isNotEmpty)
+                      MarkerLayer(
+                        markers: waypoints
+                            .map((w) => _buildWaypointMarker(context, w))
+                            .toList(),
                       ),
                     // Current position marker
                     MarkerLayer(
                       markers: [
                         Marker(
                           point: LatLng(pos.latitude, pos.longitude),
-                          child: const Icon(Icons.navigation, color: AppTheme.accentGreen, size: 28),
+                          child: const Icon(Icons.navigation,
+                              color: AppTheme.accentGreen, size: 28),
                         ),
                       ],
                     ),
@@ -94,16 +107,129 @@ class MapSection extends StatelessWidget {
                     fontFamily: 'monospace',
                   ),
                 ),
+                if (waypoints.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  const Icon(Icons.push_pin,
+                      color: AppTheme.accentAmber, size: 11),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${waypoints.length} pin${waypoints.length == 1 ? '' : 's'}',
+                    style: const TextStyle(
+                      color: AppTheme.accentAmber,
+                      fontSize: 10,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
               ],
             ),
         ],
       ),
     );
   }
+
+  Marker _buildWaypointMarker(BuildContext context, Waypoint w) {
+    return Marker(
+      point: LatLng(w.latitude, w.longitude),
+      width: 140,
+      height: 52,
+      child: GestureDetector(
+        onTap: () => _showWaypointTooltip(context, w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Name label
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceElevated,
+                borderRadius: BorderRadius.circular(4),
+                border:
+                    Border.all(color: AppTheme.accentAmber.withOpacity(0.5)),
+              ),
+              child: Text(
+                w.name,
+                style: const TextStyle(
+                  color: AppTheme.accentAmber,
+                  fontSize: 9,
+                  fontFamily: 'monospace',
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(height: 2),
+            // Pin icon
+            const Icon(Icons.push_pin, color: AppTheme.accentAmber, size: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showWaypointTooltip(BuildContext context, Waypoint w) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppTheme.surfaceElevated,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.push_pin,
+                    color: AppTheme.accentAmber, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    w.name,
+                    style: const TextStyle(
+                      color: AppTheme.textPrimary,
+                      fontFamily: 'monospace',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (w.address != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                w.address!,
+                style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                ),
+              ),
+            ],
+            const SizedBox(height: 8),
+            Text(
+              w.coordString,
+              style: const TextStyle(
+                color: AppTheme.accentCyan,
+                fontFamily: 'monospace',
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
-/// Stylized map placeholder that shows coordinate grid and path simulation
+
 class _MapPlaceholder extends StatelessWidget {
   final GpsPosition position;
   final List<GpsPosition> pathPoints;
@@ -144,20 +270,11 @@ class _MapPlaceholder extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Acquiring location...',
+                        'Acquiring location…',
                         style: TextStyle(
                           color: AppTheme.textMuted,
                           fontFamily: 'monospace',
                           fontSize: 11,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Add flutter_map for live tiles',
-                        style: TextStyle(
-                          color: AppTheme.textMuted,
-                          fontFamily: 'monospace',
-                          fontSize: 9,
                         ),
                       ),
                     ],
@@ -170,7 +287,6 @@ class _MapPlaceholder extends StatelessWidget {
   }
 }
 
-/// Custom painter that draws a grid and path visualization
 class _MapGridPainter extends CustomPainter {
   final GpsPosition position;
   final List<GpsPosition> pathPoints;
@@ -184,7 +300,6 @@ class _MapGridPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw grid
     final gridPaint = Paint()
       ..color = AppTheme.accentPurple.withOpacity(0.08)
       ..strokeWidth = 0.5;
@@ -201,7 +316,6 @@ class _MapGridPainter extends CustomPainter {
     final cx = size.width / 2;
     final cy = size.height / 2;
 
-    // Draw path if tracking
     if (pathPoints.length > 1) {
       final pathPaint = Paint()
         ..color = AppTheme.accentCyan.withOpacity(0.8)
@@ -210,10 +324,9 @@ class _MapGridPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
 
-      // Scale path points relative to center
       final baseLat = pathPoints.first.latitude;
       final baseLon = pathPoints.first.longitude;
-      const scale = 5000.0; // pixels per degree
+      const scale = 5000.0;
 
       final path = Path();
       for (int i = 0; i < pathPoints.length; i++) {
@@ -230,11 +343,9 @@ class _MapGridPainter extends CustomPainter {
       canvas.drawPath(path, pathPaint);
     }
 
-    // Draw position circle / crosshair
     final centerPaint = Paint()
       ..color = AppTheme.accentGreen
       ..style = PaintingStyle.fill;
-
     final glowPaint = Paint()
       ..color = AppTheme.accentGreen.withOpacity(0.2)
       ..style = PaintingStyle.fill;
@@ -242,7 +353,6 @@ class _MapGridPainter extends CustomPainter {
     canvas.drawCircle(Offset(cx, cy), 16, glowPaint);
     canvas.drawCircle(Offset(cx, cy), 6, centerPaint);
 
-    // Crosshair lines
     final crossPaint = Paint()
       ..color = AppTheme.accentGreen.withOpacity(0.5)
       ..strokeWidth = 1;
@@ -251,7 +361,6 @@ class _MapGridPainter extends CustomPainter {
     canvas.drawLine(Offset(cx, cy - 20), Offset(cx, cy - 8), crossPaint);
     canvas.drawLine(Offset(cx, cy + 8), Offset(cx, cy + 20), crossPaint);
 
-    // Accuracy circle
     if (position.accuracy > 0) {
       final accuracyPaint = Paint()
         ..color = AppTheme.accentCyan.withOpacity(0.15)
@@ -261,7 +370,6 @@ class _MapGridPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1;
 
-      // Scale accuracy circle (rough approximation for visualization)
       final radius = (position.accuracy * 0.5).clamp(8.0, 60.0);
       canvas.drawCircle(Offset(cx, cy), radius, accuracyPaint);
       canvas.drawCircle(Offset(cx, cy), radius, accuracyBorderPaint);
@@ -275,7 +383,6 @@ class _MapGridPainter extends CustomPainter {
 
 class _DistanceBadge extends StatelessWidget {
   final double meters;
-
   const _DistanceBadge({required this.meters});
 
   @override

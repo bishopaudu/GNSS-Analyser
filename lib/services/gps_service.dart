@@ -4,11 +4,9 @@
 
 import 'dart:async';
 import 'dart:math' as math;
-
 import 'package:geolocator/geolocator.dart';
 import 'package:raw_gnss/raw_gnss.dart';
 import 'package:raw_gnss/gnss_status_model.dart';
-
 import '../models/gps_position.dart';
 import '../models/satellite_info.dart';
 

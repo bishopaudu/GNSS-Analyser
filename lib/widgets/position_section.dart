@@ -1,5 +1,5 @@
 // widgets/position_section.dart
-// Section 1: Displays real-time GPS position data (lat, lon, alt, accuracy, speed, heading).
+// Section 1: Displays real-time GPS position data + reverse-geocoded address.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,9 +15,14 @@ class PositionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Use select to rebuild only when position changes
     final pos = context.select<GnssProvider, GpsPosition>(
       (p) => p.currentPosition,
+    );
+    final address = context.select<GnssProvider, String?>(
+      (p) => p.currentAddress,
+    );
+    final isFetchingAddress = context.select<GnssProvider, bool>(
+      (p) => p.isFetchingAddress,
     );
 
     return SectionCard(
@@ -30,22 +35,30 @@ class PositionSection extends StatelessWidget {
           _LiveIndicator(),
           const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.share, size: 20, color: AppTheme.accentCyan),
+            icon:
+                const Icon(Icons.share, size: 20, color: AppTheme.accentCyan),
             onPressed: () {
               if (pos.latitude != 0 && pos.longitude != 0) {
-                final url = 'https://www.google.com/maps/search/?api=1&query=${pos.latitude},${pos.longitude}';
-                final text = 'My GNSS Location:\n$url\nAltitude: ${pos.altitude.toStringAsFixed(1)}m\nAccuracy: ±${pos.accuracy.toStringAsFixed(1)}m';
+                final url =
+                    'https://www.google.com/maps/search/?api=1&query=${pos.latitude},${pos.longitude}';
+                final text = 'My GNSS Location:\n$url\n'
+                    '${address != null ? '$address\n' : ''}'
+                    'Altitude: ${pos.altitude.toStringAsFixed(1)}m\n'
+                    'Accuracy: ±${pos.accuracy.toStringAsFixed(1)}m';
                 Share.share(text);
               }
             },
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(),
-            tooltip: 'Share Content',
+            tooltip: 'Share Location',
           ),
         ],
       ),
       child: Column(
         children: [
+          // Address row — shows once GPS fix is obtained
+          if (pos.latitude != 0)
+            _AddressRow(address: address, isFetching: isFetchingAddress),
           // Primary coordinates row
           Row(
             children: [
@@ -124,6 +137,75 @@ class PositionSection extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+
+/// Reverse-geocoded address row below the section header.
+/// Shows a loading spinner while the first Nominatim call is in flight.
+class _AddressRow extends StatelessWidget {
+  final String? address;
+  final bool isFetching;
+
+  const _AddressRow({required this.address, required this.isFetching});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceHighlight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppTheme.accentCyan.withOpacity(0.15)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.location_on, color: AppTheme.accentCyan, size: 13),
+          const SizedBox(width: 7),
+          Expanded(
+            child: isFetching && address == null
+                ? Row(
+                    children: [
+                      SizedBox(
+                        width: 10,
+                        height: 10,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: AppTheme.accentCyan.withOpacity(0.6),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Fetching address…',
+                        style: TextStyle(
+                          color: AppTheme.textMuted,
+                          fontFamily: 'monospace',
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  )
+                : Text(
+                    address ?? 'Address unavailable',
+                    style: TextStyle(
+                      color: address != null
+                          ? AppTheme.textSecondary
+                          : AppTheme.textMuted,
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      height: 1.4,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+
 /// Blinking green dot to show live data feed
 class _LiveIndicator extends StatefulWidget {
   @override
@@ -187,6 +269,8 @@ class _LiveIndicatorState extends State<_LiveIndicator>
   }
 }
 
+// ---------------------------------------------------------------------------
+
 /// Large coordinate display tile
 class _CoordTile extends StatelessWidget {
   final String label;
@@ -237,6 +321,8 @@ class _CoordTile extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
 
 /// Compact metric tile for secondary data
 class _MetricTile extends StatelessWidget {

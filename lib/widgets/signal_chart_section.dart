@@ -3,7 +3,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../providers/gnss_provider.dart';
 import '../models/satellite_info.dart';
 import '../utils/app_theme.dart';
@@ -57,13 +56,13 @@ class SignalChartSection extends StatelessWidget {
 class _ScaleRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       children: [
-        const SizedBox(width: 48), // align with bar start
+        SizedBox(width: 48), // align with bar start
         Expanded(
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
+            children: [
               _ScaleLabel('0'),
               _ScaleLabel('15'),
               _ScaleLabel('25'),

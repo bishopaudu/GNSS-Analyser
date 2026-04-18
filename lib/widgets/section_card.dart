@@ -44,9 +44,9 @@ class SectionCard extends StatelessWidget {
           // Section header with colored left border accent
           Container(
             padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppTheme.surfaceElevated,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(11)),
               border: Border(
                 bottom: BorderSide(color: AppTheme.border, width: 1),
               ),
@@ -64,7 +64,7 @@ class SectionCard extends StatelessWidget {
                     boxShadow: [
                       BoxShadow(
                         color: accent.withOpacity(0.6),
-                        blurRadius: 6,
+                    //    blurRadius: 6,
                       ),
                     ],
                   ),
